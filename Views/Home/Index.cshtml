@@ -1,0 +1,224 @@
+﻿<html>
+<head>
+    <title>Carros</title>
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+
+    <!-- Optional theme -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+
+    <!-- Latest compiled and minified JavaScript -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+
+    <script>
+        $(document).ready(function () {
+            $("#login-wrapper").slideDown();
+            $("#cars-wrapper").hide();
+
+            var failtRequest = function (jqXHR, textStatus) {
+                if (jqXHR && jqXHR.status == 401) {
+                    window.location = window.location;
+                    return;
+                }
+
+                if (jqXHR.responseJSON) {
+                    if (jqXHR && jqXHR.status == 401 || jqXHR.responseJSON.status == "401") {
+                        window.location = window.location;
+                    } else {
+                        alert("Fail Request!\n" + jqXHR.responseJSON.status + ": " + jqXHR.responseJSON.title);
+                    }
+                } else {
+                    console.log(jqXHR)
+                    console.log(textStatus)
+                    alert("Fail Request!\n" + jqXHR.responseText)
+                }
+            };
+
+            $("#do-login").click(function () {
+                $.ajax({
+                    url: "/api/auth",
+                    type: "POST",
+                    data: JSON.stringify({ "UserName": $("#txtUsername").val(), "Password": $("#txtPassword").val() }),
+                    contentType: "application/json",
+                    dataType: "json"
+                })
+                    .done(function (result) {
+                        localStorage.setItem('token', result.token);
+
+                        $("#login-wrapper").slideUp();
+                        $("#cars-wrapper").slideDown();
+
+                        loadGrid();
+                    })
+                    .fail(function (jqXHR, textStatus) {
+                        if (jqXHR.responseJSON) {
+                            alert("Fail Login!\n" + jqXHR.responseJSON.status + ": " + jqXHR.responseJSON.title);
+                        } else {
+                            console.log(jqXHR)
+                            console.log(textStatus)
+                            alert("Fail Login!")
+                        }
+                    });
+            });
+
+            $("#btn-refresh").click(function () {
+                loadGrid();
+            });
+
+            $("#btn-save").click(function () {
+                var car = {
+                    "Brand": $("#txtBrand").val(),
+                    "Model": $("#txtModel").val(),
+                    "Age": $("#txtAge").val()
+                };
+
+                var id = $("#hdfId").val();
+                var isUpdate = id != "";
+                if (isUpdate)
+                    car.Id = id;
+
+                $.ajax({
+                    url: "/api/cars" + (isUpdate ? ("/" + id) : ""),
+                    type: isUpdate ? "PUT" : "POST",
+                    headers: { "Authorization": "bearer " + localStorage.getItem('token') },
+                    data: JSON.stringify(car),
+                    contentType: "application/json",
+                    dataType: "json"
+                })
+                    .done(function () {
+                        $('#myModal').modal('hide');
+                        loadGrid();
+                    })
+                    .fail(failtRequest);
+            });
+
+            $("#btn-new").click(function () {
+                $("#hdfId").val("");
+                $("#txtBrand").val("");
+                $("#txtModel").val("");
+                $("#txtAge").val("");
+            });
+
+            $("#cars-table tbody").on("click", ".btn-edit", function () {
+                $.ajax({
+                    url: "/api/cars/" + $(this).closest("tr").attr("data-id"), type: 'GET', headers: { "Authorization": "bearer " + localStorage.getItem('token') }
+                }).done(function (data) {
+                    $("#hdfId").val(data.Id);
+                    $("#txtBrand").val(data.Brand);
+                    $("#txtModel").val(data.Model);
+                    $("#txtAge").val(data.Age);
+
+                    $('#myModal').modal('show');
+
+                }).fail(failtRequest);
+            });
+
+            $("#cars-table tbody").on("click", ".btn-delete", function () {
+                $.ajax({
+                    url: "/api/cars/" + $(this).closest("tr").attr("data-id"), type: 'DELETE', headers: { "Authorization": "bearer " + localStorage.getItem('token') }
+                }).done(function () {
+                    //alert("delete successfully!");
+                    loadGrid();
+                }).fail(failtRequest);
+            });
+
+            function loadGrid() {
+                $("#cars-table tbody").empty();
+
+                $.ajax({
+                    url: "/api/cars",
+                    type: 'GET',
+                    headers: { "Authorization": "bearer " + localStorage.getItem('token') }
+                }).done(function (data) {
+                    data.forEach(function (element) {
+                        $("#cars-table tbody").append(
+                            "<tr data-id='" + element.Id + "'>" +
+                            "   <td>" + element.Brand + "</td>" +
+                            "   <td>" + element.Model + "</td>" +
+                            "   <td>" + element.Age + "</td>" +
+                            "   <td>" +
+                            "      <button type='button' class='btn-edit btn btn-primary'><i class='glyphicon glyphicon-pencil'></i> Edit</button> " +
+                            "      <button type='button' class='btn-delete btn btn-danger'><i class='glyphicon glyphicon-trash'></i> Delete</button>" +
+                            "   </td>" +
+                            "</tr>"
+                        );
+                    });
+                }).fail(failtRequest);
+            }
+
+        });
+    </script>
+
+    <style>
+        #cars-table tbody tr td:last-child {
+            width: 1%;
+            white-space: nowrap
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="login-wrapper">
+            <h1>Login</h1>
+            <div class="form-row align-items-center">
+                <div class="col-sm-3 my-1">
+                    <label class="sr-only" for="txtUsername">Username</label>
+                    <input type="text" class="form-control" id="txtUsername" placeholder="Username" value="welton">
+                </div>
+                <div class="col-sm-3 my-1">
+                    <label class="sr-only" for="txtPassword">Password</label>
+                    <input type="password" class="form-control" id="txtPassword" placeholder="Password" value="1234">
+                </div>
+                <div class="col-auto my-1">
+                    <button id="do-login" type="button" class="btn btn-primary">Login</button>
+                </div>
+            </div>
+        </div>
+        <div id="cars-wrapper">
+            <h1>Cars</h1>
+            <div class="btn-group">
+                <button id="btn-refresh" type="button" class="btn btn-default"><i class="glyphicon glyphicon-refresh"></i> Refresh All</button>
+                <button id="btn-new" type="button" class="btn btn-primary" data-toggle="modal" data-target="#myModal"><i class="glyphicon glyphicon-plus"></i> Create New</button>
+            </div>
+            <table id="cars-table" class="table">
+                <thead><tr><th>Brand</th><th>Model</th><th>Age</th><th></th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title" id="myModalLabel">Car</h4>
+                </div>
+                <div class="modal-body">
+                    <div>
+                        <input type="hidden" id="hdfId">
+                        <div class="form-group">
+                            <label for="txtBrand">Brand</label>
+                            <input type="text" class="form-control" id="txtBrand" placeholder="Brand">
+                        </div>
+                        <div class="form-group">
+                            <label for="txtModel">Model</label>
+                            <input type="text" class="form-control" id="txtModel" placeholder="Model">
+                        </div>
+                        <div class="form-group">
+                            <label for="txtAge">Age</label>
+                            <input type="text" class="form-control" id="txtAge" placeholder="Age">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    <button id="btn-save" type="button" class="btn btn-primary">Save changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
