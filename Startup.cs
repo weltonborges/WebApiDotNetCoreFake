@@ -49,7 +49,8 @@ namespace WebApiDotNetCoreFake
                             ValidateIssuerSigningKey = true,
                             ValidIssuer = "api.fake",
                             ValidAudience = "api.fake",
-                            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Configuration["SecurityKey"]))
+                            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Configuration["SecurityKey"])),
+                            ClockSkew = TimeSpan.Zero
                         };
 
                         options.Events = new JwtBearerEvents
